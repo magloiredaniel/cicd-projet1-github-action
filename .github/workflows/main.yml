@@ -10,6 +10,7 @@ on:
 
 # Pour cette partie, nous allons faire un job par commande selon les commandes que nous avons dans la partie script du fichier
 # package.json (test:ci et lint) du backend
+# " Relance apres coupure de la connexion"
 
 jobs:
   tests:
