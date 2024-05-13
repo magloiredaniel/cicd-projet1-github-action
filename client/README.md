@@ -1,5 +1,5 @@
 # dymavue
-ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEw81biuHqnjp8UXUuHHhtWvUmUDx/ah3Ene4aWkTd4c Workflow Key
+
 This template should help get you started developing with Vue 3 in Vite.
 
 ## Recommended IDE Setup
