@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run: 
-        workink-directory: ./server
+        working-directory: ./server
     steps:
       - name: checkout le code
         uses: actions/checkout@v4
