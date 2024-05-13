@@ -1,0 +1,51 @@
+name: CI/CD Workflow 
+
+env:
+  SERVER_IP: "51.77.244.180"
+  SERVER_USER: root
+
+on:
+  push:
+    branches: master
+
+# Pour cette partie, nous allons faire un job par commande selon les commandes que nous avons dans la partie script du fichier
+# package.json (test:ci et lint) du backend
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run: 
+        workink-directory: ./server
+    steps:
+      - name: checkout le code
+        uses: actions/checkout@v4
+      - name: installer node.js et configuration du cache
+        uses: actions/setup-node@v3
+        with:
+          cache: "npm"
+          cache-dependency-path: ./server/package-lock.json
+      - name: installer les dépendences
+        run: npm ci --cache .npm --prefer-offline 
+      - name: vérification du code avec Lint
+        run: npm run lint
+      - name: vérification (check) des vulnérabilités des dépendances
+        run: npm audit
+      - name: exécution des tests
+        run: npm run test:ci
+
+  deploy:
+    needs: tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout le code
+        uses: actions/checkout@v4
+      - name: déployer sur le server distant ovh
+        run: |
+            eval $(ssh-agent -s)
+            ssh-add - <<< "${{ secrets.SSH_KEY_VPS }}"
+            mkdir -p ~/.ssh
+            ssh-keyscan -H ${{ env.SERVER_IP }} >> ~/.ssh/known_hosts
+            scp -r ./server $SERVER_USER@$SERVER_IP:/var/www
+            ssh $SERVER_USER@$SERVER_IP "cd /var/www/server && npm install --omit=dev"
+            ssh $SERVER_USER@$SERVER_IP "cd /var/www/server && pm2 startOrRestart ecosystem.config.js --env  production && pm2 save"
