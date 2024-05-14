@@ -86,10 +86,44 @@ jobs:
         with:
           name: build
           path: ./client/dist
-      
+
+  test-e2e-frontend:  # Pour réaliser ce job, on a besoin tout d'abord de récupérer l'artifact
+    needs: build-frontend
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout le code
+        uses: actions/checkout@v4
+      - name: installer node.js et configuration du cache
+        uses: actions/setup-node@v4
+        with:
+          cache: "npm"
+          cache-dependency-path: '**package-lock.json'
+      - name: installer les dépendences
+        run: |
+          cd server
+          npm ci --prefer-offline
+      - name: download (télécharger) build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build
+          path: ./client/dist
+      - name: start backend
+        run: |
+          cd server
+          npm start &
+      - name: exécution de cypress
+        uses: cypress-io/github-action@v6
+        with:
+          working-directory: ./client
+          browser: chrome
+          start: npm run preview
+          wait-on: http://localhost:4173
+          wait-on-timeout: 60
+          config: bassUrl=http://localhost:4173
+          component: true
 
   deploy:
-    needs: [check-tests-backend, build-frontend]
+    needs: [check-tests-backend, test-e2e-frontend]
     runs-on: ubuntu-latest
     steps:
       - name: checkout le code
