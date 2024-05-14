@@ -120,7 +120,6 @@ jobs:
           wait-on: http://localhost:4173
           wait-on-timeout: 60
           config: bassUrl=http://localhost:4173
-          component: true
 
   deploy:
     needs: [check-tests-backend, test-e2e-frontend]
