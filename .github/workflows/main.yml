@@ -16,7 +16,7 @@ concurrency:
 # " Relance apres coupure de la connexion"
 
 jobs:
-  tests:
+  check-tests-backend:
     runs-on: ubuntu-latest
     defaults:
       run: 
@@ -42,12 +42,63 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
 
+  check-frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run: 
+        working-directory: ./client
+    steps:
+      - name: checkout le code
+        uses: actions/checkout@v4
+      - name: installer node.js et configuration du cache
+        uses: actions/setup-node@v3
+        with:
+          cache: "npm"
+          cache-dependency-path: ./client/package-lock.json
+      - name: installer les dépendences
+        run: npm ci --prefer-offline 
+      - name: vérification du code avec Lint
+        run: npm run lint
+      - name: vérification (check) des vulnérabilités des dépendances
+        run: npm audit fix
+
+        #Ce job va nous permettre de construire notre application frontend
+  build-frontend:
+    needs: check-frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run: 
+        working-directory: ./client
+    steps:
+      - name: checkout le code
+        uses: actions/checkout@v4
+      - name: installer node.js et configuration du cache
+        uses: actions/setup-node@v3
+        with:
+          cache: "npm"
+          cache-dependency-path: ./client/package-lock.json
+      - name: installer les dépendences
+        run: npm ci --prefer-offline 
+      - name: build application frontend
+        run: npm run build
+      - name: upload (charger) build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build
+          path: ./client/dist
+      
+
   deploy:
-    needs: tests
+    needs: [check-tests-backend, build-frontend]
     runs-on: ubuntu-latest
     steps:
       - name: checkout le code
         uses: actions/checkout@v4
+      - name: download (télécharger) build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build
+          path: ./dist  # on va positionner l'artifact dans ce dossier
       - name: déployer sur le server distant ovh
         run: |
             eval $(ssh-agent -s)
@@ -55,5 +106,6 @@ jobs:
             mkdir -p ~/.ssh
             ssh-keyscan -H ${{ env.SERVER_IP }} >> ~/.ssh/known_hosts
             scp -r ./server ${{ env.SERVER_USER }}@${{ env.SERVER_IP }}:/var/www
+            scp -r ./dist ${{ env.SERVER_USER }}@${{ env.SERVER_IP }}:/var/www/dist
             ssh ${{ env.SERVER_USER }}@${{ env.SERVER_IP }} "cd /var/www/server && npm install --omit=dev"
             ssh ${{ env.SERVER_USER }}@${{ env.SERVER_IP }} "cd /var/www/server && pm2 startOrRestart ecosystem.config.js --env production && pm2 save"
